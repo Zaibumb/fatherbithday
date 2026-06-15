@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Секретний Неоновий Квест для Тата</title>
+    <style>
+        :root {
+            --bg-dark: #050508;
+            --panel-bg: rgba(13, 13, 23, 0.9);
+            --neon-gold: #ffcc00;
+            --neon-blue: #00e5ff;
+            --neon-green: #39ff14;
+            --neon-red: #ff3366;
+            --text-main: #ffffff;
+            --text-muted: #8a8ab0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+            transition: background-color 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* КІБЕР-ПРЕЛОАДЕР (ЗАСТАВКА) */
+        #preloader {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #020205;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: monospace;
+            padding: 20px;
+            transition: opacity 0.8s cubic-bezier(0.77, 0, 0.175, 1), visibility 0.8s;
+        }
+
+        .terminal-box {
+            max-width: 600px;
+            width: 100%;
+            background: #07070f;
+            border: 1px solid #1a1a3a;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.1);
+        }
+
+        .terminal-header {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #1a1a3a;
+            padding-bottom: 10px;
+        }
+        .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .td-r { background: var(--neon-red); }
+        .td-y { background: var(--neon-gold); }
+        .td-g { background: var(--neon-green); }
+
+        .terminal-row {
+            font-size: 15px;
+            line-height: 1.5;
+            color: var(--neon-blue);
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            width: 0;
+            animation: typeLine 1.5s steps(40) forwards;
+        }
+        .terminal-row.green-text { color: var(--neon-green); }
+        .terminal-row.gold-text { color: var(--neon-gold); }
+
+        .terminal-row:nth-child(1) { animation-delay: 0.1s; }
+        .terminal-row:nth-child(2) { animation-delay: 1.0s; }
+        .terminal-row:nth-child(3) { animation-delay: 2.0s; animation-name: typeLineShort; }
+        .terminal-row:nth-child(4) { animation-delay: 3.0s; }
+        .terminal-row:nth-child(5) { animation-delay: 4.0s; }
+
+        @keyframes typeLine { to { width: 100%; } }
+        @keyframes typeLineShort { to { width: 320px; } }
+
+        .progress-container {
+            width: 100%; height: 4px; background: #111122; margin-top: 15px; border-radius: 2px; overflow: hidden;
+        }
+        .progress-bar {
+            width: 0%; height: 100%; background: linear-gradient(90deg, var(--neon-blue), var(--neon-green));
+            animation: loadBar 5.5s cubic-bezier(0.1, 0.6, 0.4, 1) forwards;
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+        @keyframes loadBar { 100% { width: 100%; } }
+
+        .enter-system-btn {
+            background: transparent; border: 2px solid var(--neon-green); color: var(--neon-green);
+            padding: 12px 35px; font-size: 16px; font-family: monospace; font-weight: bold;
+            text-transform: uppercase; letter-spacing: 2px; border-radius: 6px; cursor: pointer;
+            margin-top: 25px; opacity: 0; transform: scale(0.9); transition: all 0.3s;
+            animation: fadeInBtn 0.5s ease-out 5.6s forwards, pulseGlow 1.5s infinite 6.1s alternate;
+        }
+        .enter-system-btn:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 25px var(--neon-green); }
+        @keyframes fadeInBtn { to { opacity: 1; transform: scale(1); } }
+        @keyframes pulseGlow { from { box-shadow: 0 0 5px rgba(57, 255, 20, 0.2); } to { box-shadow: 0 0 15px rgba(57, 255, 20, 0.6); } }
+
+        /* CANVAS ФЕЄРВЕРКІВ */
+        #fireworks-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: none; }
+
+        body.error-flash { animation: redAlertBackground 0.4s ease-out forwards; }
+        @keyframes redAlertBackground { 0% { background-color: rgba(255, 51, 102, 0.4); } 100% { background-color: var(--bg-dark); } }
+
+        /* КІБЕР-ФОН */
+        .bg-animations { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; overflow: hidden; }
+        .laser-line {
+            position: absolute; width: 2px; height: 150px;
+            background: linear-gradient(to bottom, transparent, var(--neon-blue), transparent);
+            animation: dropLines 4s infinite linear; opacity: 0.3;
+        }
+        .laser-line:nth-child(1) { left: 10%; animation-duration: 3s; animation-delay: 0.5s; }
+        .laser-line:nth-child(2) { left: 30%; animation-duration: 5s; animation-delay: 1.2s; }
+        .laser-line:nth-child(3) { left: 75%; animation-duration: 4s; animation-delay: 0s; }
+        .laser-line:nth-child(4) { left: 90%; animation-duration: 6s; animation-delay: 2.3s; }
+        @keyframes dropLines { 0% { transform: translateY(-200px); } 100% { transform: translateY(110vh); } }
+
+        /* КОНТЕЙНЕР КВЕСТУ */
+        .quest-container {
+            max-width: 850px; width: 100%; margin: 20px auto;
+            background: var(--panel-bg); border: 2px solid #1a1a3a; border-radius: 24px; padding: 40px;
+            position: relative; backdrop-filter: blur(15px); z-index: 1;
+            display: flex; flex-direction: column; justify-content: space-between;
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.1);
+            animation: containerPulse 4s infinite alternate ease-in-out;
+            transition: box-shadow 0.3s ease, border-color 0.2s;
+        }
+        .quest-container.shake-error {
+            animation: screenShake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+            border-color: var(--neon-red) !important;
+            box-shadow: 0 0 50px rgba(255, 51, 102, 0.6) !important;
+        }
+        @keyframes screenShake {
+            10%, 90% { transform: translate3d(-2px, 0, 0) rotate(-0.5deg); }
+            20%, 80% { transform: translate3d(4px, 0, 0) rotate(1deg); }
+            30%, 50%, 70% { transform: translate3d(-6px, -2px, 0) rotate(-1deg); }
+            40%, 60% { transform: translate3d(6px, 2px, 0) rotate(0.5deg); }
+        }
+        @keyframes containerPulse {
+            0% { border-color: #1a1a3a; box-shadow: 0 0 30px rgba(0, 229, 255, 0.05); }
+            100% { border-color: #333366; box-shadow: 0 0 50px rgba(0, 229, 255, 0.15); }
+        }
+
+        .screen { display: none; width: 100%; }
+        .screen.active { display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1; }
+
+        h1, h2 {
+            color: var(--neon-gold); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 25px;
+            position: relative; text-shadow: 2px 2px 0px var(--neon-red), -2px -2px 0px var(--neon-blue);
+        }
+        .glitch-title { animation: glitchEffect 2.5s infinite; }
+        @keyframes glitchEffect {
+            0%, 90%, 100% { text-shadow: 2px 2px 0px var(--neon-red), -2px -2px 0px var(--neon-blue); transform: skew(0deg); }
+            91% { text-shadow: 4px -2px 0px var(--neon-green), -3px 2px 0px var(--neon-gold); transform: skew(3deg); }
+            93% { text-shadow: -5px 3px 0px var(--neon-red), 3px -3px 0px var(--neon-blue); transform: skew(-5deg); }
+        }
+
+        .story-viewport { min-height: 100px; margin-bottom: 25px; position: relative; }
+        .story-block {
+            position: absolute; top: 0; left: 0; width: 100%; opacity: 0;
+            transform: scale(0.95) translateY(15px); pointer-events: none;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            font-size: 21px; line-height: 1.6; color: #e2e2f5;
+        }
+        .story-block.visible { position: relative; opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
+
+        .next-arrow-btn {
+            display: inline-flex; align-items: center; background: none; border: none; color: var(--neon-blue);
+            font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 15px; transition: all 0.3s;
+            text-transform: uppercase; letter-spacing: 2px; align-self: flex-start;
+        }
+        .next-arrow-btn span { margin-left: 8px; animation: arrowBlink 1s infinite alternate; }
+        @keyframes arrowBlink { 0% { transform: translateX(0); opacity: 0.5; } 100% { transform: translateX(6px); opacity: 1; } }
+        .next-arrow-btn:hover { color: var(--neon-gold); text-shadow: 0 0 10px var(--neon-gold); }
+
+        .action-btn {
+            background: transparent; color: var(--neon-gold); border: 2px solid var(--neon-gold);
+            padding: 18px 50px; font-size: 20px; font-weight: 800; border-radius: 12px; cursor: pointer;
+            margin-top: 25px; transition: all 0.3s; text-transform: uppercase; letter-spacing: 2px;
+            align-self: center; position: relative; overflow: hidden; box-shadow: 0 0 15px rgba(255, 204, 0, 0.2);
+        }
+        .action-btn:hover { background: var(--neon-gold); color: #000; box-shadow: 0 0 35px var(--neon-gold); transform: scale(1.05) rotate(-1deg); }
+
+        /* ЗОНА ПІДВАЛУ */
+        #flashlight-wrapper {
+            position: relative; width: 100%; height: 50vh; min-height: 350px; max-height: 430px;
+            background: #09090f; border-radius: 16px; margin-top: 15px; overflow: hidden; cursor: none;
+            border: 2px solid #22223b; box-shadow: inset 0 0 30px #000;
+            touch-action: none;
+        }
+        .darkness-mask {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle 95px at var(--mouse-x, -200px) var(--mouse-y, -200px), transparent 100%, rgba(2,2,4,0.99) 100%);
+            pointer-events: none; z-index: 10;
+        }
+
+        .game-object { position: absolute; cursor: pointer; z-index: 2; padding: 10px; transition: transform 0.2s; }
+        .game-object:hover { transform: scale(1.1); }
+        #item-shield { width: 95px; height: 115px; top: 12%; left: 10%; }
+        #item-wire { width: 140px; height: 80px; top: 38%; right: 10%; }
+        #item-tape { width: 65px; height: 65px; bottom: 15%; right: 15%; display: none; }
+        #item-switch { width: 75px; height: 75px; bottom: 10%; left: 45%; }
+        .object-done { filter: drop-shadow(0 0 15px var(--neon-green)) brightness(1.4) !important; }
+
+        .rat-enemy { position: absolute; width: 55px; height: 40px; z-index: 5; cursor: pointer; transition: top 0.7s, left 0.7s; }
+
+        .game-status-panel {
+            margin-top: 15px; padding: 15px; border-radius: 12px; background: #040408;
+            border-left: 4px solid var(--neon-blue); font-size: 16px; min-height: 54px;
+            display: flex; align-items: center; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .quiz-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 25px; width: 100%; }
+        .quiz-option {
+            background: #111122; border: 1px solid #252542; padding: 20px; border-radius: 14px;
+            color: var(--text-main); text-align: left; cursor: pointer; font-size: 18px; transition: all 0.25s;
+        }
+        .quiz-option:hover { background: #171730; border-color: var(--neon-blue); transform: scale(1.01) translateX(5px); }
+        .quiz-feedback { margin-top: 20px; padding: 18px; border-radius: 12px; font-weight: bold; display: none; }
+        .feedback-error { background: rgba(255, 51, 102, 0.1); border: 1px solid var(--neon-red); color: #ff527b; }
+        .feedback-success { background: rgba(57, 255, 20, 0.1); border: 1px solid var(--neon-green); color: #5eff42; }
+
+        .code-pill {
+            display: inline-block; background: #000; color: var(--neon-gold); padding: 6px 22px;
+            border-radius: 6px; font-family: monospace; font-size: 26px; border: 1px solid #444; margin-top: 10px;
+        }
+
+        .final-code-box {
+            font-size: 56px; font-family: monospace; letter-spacing: 15px; color: var(--neon-green);
+            background: #020204; padding: 25px 50px; border-radius: 16px; border: 2px dashed var(--neon-green);
+            display: inline-block; margin: 30px 0; text-shadow: 0 0 25px rgba(57, 255, 20, 0.8);
+        }
+
+        /* НЕОНОВИЙ СЛАЙДЕР ДЛЯ ФОТОГРАФІЙ */
+        .slider-container {
+            position: relative;
+            width: 100%;
+            max-width: 550px;
+            margin: 30px auto;
+            overflow: hidden;
+            border: 2px solid var(--neon-blue);
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.2);
+        }
+
+        .slider-track {
+            display: flex;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 100%;
+        }
+
+        .slide {
+            min-width: 100%;
+            position: relative;
+            background: #0d0d1a;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .slide img {
+            width: 100%;
+            height: 320px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 1px solid #222244;
+        }
+
+        .slide-caption {
+            margin-top: 12px;
+            color: var(--neon-blue);
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .slider-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 229, 255, 0.15);
+            border: 1px solid var(--neon-blue);
+            color: #fff;
+            width: 45px;
+            height: 45px;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 20;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+            backdrop-filter: blur(5px);
+        }
+        .slider-btn:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 15px var(--neon-blue); }
+        .prev-btn { left: 20px; }
+        .next-btn { right: 20px; }
+
+
+        /* =======================================================
+           📱 ФІКС ТЕКСТУ ДЛЯ ТЕЛЕФОНІВ (БЕЗ ЗМІНИ ВЕРСТКИ)
+           ======================================================= */
+        @media (max-width: 768px) {
+            body { padding: 10px; align-items: flex-start; }
+            
+            .quest-container { padding: 25px 15px; margin: 5px auto; border-radius: 16px; }
+
+            h1, h2 { font-size: 22px; letter-spacing: 1px; margin-bottom: 15px; text-align: center; }
+            
+            .story-viewport { min-height: 140px; margin-bottom: 15px; }
+            .story-block { font-size: 17px; line-height: 1.5; text-align: center; }
+
+            .next-arrow-btn { margin: 15px auto 0 auto; align-self: center; }
+            .action-btn { padding: 15px 35px; font-size: 18px; width: 100%; text-align: center; }
+
+            /* Виправлення багу зникнення тексту в прелоадері */
+            .terminal-box { padding: 15px; }
+            .terminal-row { 
+                font-size: 13px; 
+                white-space: normal !important; 
+                word-break: break-word; 
+                width: 100% !important; 
+                opacity: 0;
+                animation: mobileFadeIn 0.5s ease-out forwards !important;
+            }
+            .terminal-row:nth-child(1) { animation-delay: 0.2s !important; }
+            .terminal-row:nth-child(2) { animation-delay: 1.0s !important; }
+            .terminal-row:nth-child(3) { animation-delay: 1.8s !important; }
+            .terminal-row:nth-child(4) { animation-delay: 2.6s !important; }
+            .terminal-row:nth-child(5) { animation-delay: 3.4s !important; }
+
+            @keyframes mobileFadeIn {
+                from { opacity: 0; transform: translateY(5px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
+            .enter-system-btn { width: 100%; padding: 14px; font-size: 15px; animation-delay: 4.0s, 4.6s; }
+            .progress-bar { animation-duration: 3.8s; }
+
+            #flashlight-wrapper { height: 340px; min-height: 340px; }
+            .darkness-mask {
+                background: radial-gradient(circle 85px at var(--mouse-x, -200px) var(--mouse-y, -200px), transparent 100%, rgba(2,2,4,1) 100%);
+            }
+
+            .quiz-option { padding: 16px; font-size: 16px; }
+            .final-code-box { font-size: 36px; padding: 15px 30px; letter-spacing: 8px; }
+            .slide img { height: 220px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="preloader">
+    <div class="terminal-box">
+        <div class="terminal-header">
+            <div class="terminal-dot td-r"></div>
+            <div class="terminal-dot td-y"></div>
+            <div class="terminal-dot td-g"></div>
+        </div>
+        <div class="terminal-content">
+            <div class="terminal-row">&gt; Навчання системи безпеки... Квест лоадер v3.5</div>
+            <div class="terminal-row">&gt; Сканування користувача за біометрією...</div>
+            <div class="terminal-row gold-text">&gt; Знайдено об'єкт: "НАЙКРАЩИЙ ТАТО В СВІТІ"</div>
+            <div class="terminal-row">&gt; Декодування секретного святкового презенту...</div>
+            <div class="terminal-row green-text">&gt; Стан завантаження: 100% СИСТЕМА ГОТОВА.</div>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar"></div>
+        </div>
+    </div>
+    <button class="enter-system-btn" onclick="closePreloader()">Увійти в систему 🔓</button>
+</div>
+
+<canvas id="fireworks-canvas"></canvas>
+
+<div class="bg-animations">
+    <div class="laser-line"></div>
+    <div class="laser-line"></div>
+    <div class="laser-line"></div>
+    <div class="laser-line"></div>
+</div>
+
+<div class="quest-container" id="main-box">
+
+    <div class="screen active" id="screen-start">
+        <h1 class="glitch-title">З Днем Народження, Тату! 🎁</h1>
+        <div class="story-viewport">
+            <p class="story-block visible" data-step="1">Опа... Ну привіт, шеф! 👤</p>
+            <p class="story-block" data-step="2">Що, думав, якщо в тебе день народження, то можна просто так підійти, взяти коробочку, розірвати бантик і радіти? 😉</p>
+            <p class="story-block" data-step="3">Нііі, тату, номер не пройде! Цього року твій секретний презент сидить під суворим арештом: обмотаний ланцюгом і закритий на кодовий замок. Хочеш код? Тоді доведеться згадати всі свої скіли та пройти цей квест. Готовий?</p>
+        </div>
+        <button class="next-arrow-btn" id="arrow-start" onclick="advanceStory('screen-start')">Далі <span>➔</span></button>
+        <button class="action-btn" id="btn-start-game" style="display:none;" onclick="nextScreen(2)">Погнали! 🚀</button>
+    </div>
+
+    <div class="screen" id="screen-quest1">
+        <h2>Завдання 1: Темний підвал ⚡</h2>
+        <div class="story-viewport">
+            <p class="story-block visible" data-step="1">Блін, на сайті вибило головний автомат, повна темрява! 🔦</p>
+            <p class="story-block" data-step="2">Тут без головного інженера ніяк. Рухай ліхтариком (або пальцем), знайди на стінах щиток, обрив та вимикач і полагоди все послідовно!</p>
+        </div>
+        <button class="next-arrow-btn" id="arrow-q1" onclick="advanceStory('screen-quest1')">Далі <span>➔</span></button>
+
+        <div id="interactive-q1-zone" style="display: none; width:100%;">
+            <div id="flashlight-wrapper" onmousemove="updateFlashlight(event)" ontouchmove="updateFlashlightTouch(event)" onclick="handleDarknessMiss()">
+                <div class="darkness-mask" id="mask"></div>
+                
+                <svg class="game-object" id="item-shield" onclick="clickDarkItem('shield', event)" ontouchstart="clickDarkItem('shield', event)" viewBox="0 0 100 120">
+                    <rect x="10" y="10" width="80" height="100" rx="8" fill="#2d2d3a" stroke="#4e4e66" stroke-width="3"/>
+                    <rect x="25" y="30" width="50" height="40" rx="4" fill="#1a1a24"/>
+                    <line x1="50" y1="35" x2="50" y2="65" stroke="#ff3366" stroke-width="6" stroke-linecap="round" id="shield-lever"/>
+                    <circle cx="50" cy="35" r="5" fill="#ff3366" id="shield-knob"/>
+                </svg>
+
+                <svg class="game-object" id="item-wire" onclick="clickDarkItem('wire', event)" ontouchstart="clickDarkItem('wire', event)" viewBox="0 0 140 70">
+                    <path d="M 10 35 Q 40 10, 60 35" fill="none" stroke="#ffcc00" stroke-width="5" stroke-dasharray="3,3"/>
+                    <path d="M 80 35 Q 100 60, 130 35" fill="none" stroke="#ffcc00" stroke-width="5" stroke-dasharray="3,3"/>
+                </svg>
+
+                <svg class="game-object" id="item-tape" onclick="clickDarkItem('tape', event)" ontouchstart="clickDarkItem('tape', event)" viewBox="0 0 60 60">
+                    <circle cx="30" cy="30" r="25" fill="#0044ff" stroke="#0022aa" stroke-width="3"/>
+                    <circle cx="30" cy="30" r="12" fill="#111"/>
+                </svg>
+
+                <svg class="game-object" id="item-switch" onclick="clickDarkItem('switch', event)" ontouchstart="clickDarkItem('switch', event)" viewBox="0 0 60 60">
+                    <rect x="5" y="5" width="50" height="50" rx="10" fill="#3a3a4e" stroke="#555577" stroke-width="2"/>
+                    <polygon points="20,40 40,40 30,15" fill="#111" id="switch-rocker"/>
+                </svg>
+            </div>
+            <div class="game-status-panel" id="game-status-text" style="color: var(--neon-blue);">⚡ Шукай Головний Щиток ліхтариком...</div>
+        </div>
+
+        <div id="success-q1-box" style="display:none; margin-top: 20px; width:100%; text-align: center;">
+            <p style="color: var(--neon-green); font-size: 18px; font-weight: bold; margin-bottom: 15px;">💡 СВІТЛО Є! Ну ти й майстер, ДСНС відпочиває!</p>
+            <p>Твоя перша цифра коду: <br><span class="code-pill" id="display-d1">X</span></p>
+            <button class="next-arrow-btn" style="margin-top:25px;" onclick="nextScreen(3)">Йдемо далі <span>➔</span></button>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-quest2">
+        <h2>Завдання 2: Екзамен на карту побиту 🇺🇦🇵🇱</h2>
+        <div class="story-viewport">
+            <p class="story-block visible" data-step="1">Перша цифра в кишені! Але розслаблятися зарано...</p>
+            <p class="story-block" data-step="2">Ти вже два роки перебуваєш у "таємній делегації" в Польщі. 🇵🇱</p>
+            <p class="story-block" data-step="3">Давай перевіримо твій уровень маскування серед місцевих панів!</p>
+        </div>
+        <button class="next-arrow-btn" id="arrow-q2" onclick="advanceStory('screen-quest2')">Далі <span>➔</span></button>
+
+        <div id="quiz-q2-zone" style="display: none; width:100%;">
+            <div class="quiz-step" id="q2-step1">
+                <p style="font-size:16px; margin-bottom:10px;"><b>Питання 1:</b> Ти на об'єкті випадково впустив важку перфораторну дрель на ногу польському бригадиру. Що ти МАЄШ крикнути в першу секунду?</p>
+                <div class="quiz-grid">
+                    <button class="quiz-option" onclick="answerQuiz(2, 1, false)">А) "Ой, пан єстем бардзо пшеклінти, вибачте!"</button>
+                    <button class="quiz-option" onclick="answerQuiz(2, 1, false)">Б) "Йой, лишенько, тримайте мене семеро!"</button>
+                    <button class="quiz-option" onclick="answerQuiz(2, 1, true)">В) Просто голосно і з почуттям: "КУУУУРРРВ**ААА!" 🤬</button>
+                </div>
+            </div>
+            <div class="quiz-step" id="q2-step2" style="display:none;">
+                <p style="font-size:16px; margin-bottom:10px;"><b>Питання 2:</b> Ти прийшов у гості до пана, а він каже: "Почекай, зараз я зварю <b>фляки (Flaki)</b>". Твої дії?</p>
+                <div class="quiz-grid">
+                    <button class="quiz-option" onclick="answerQuiz(2, 2, false)">А) О, супер! Напевно якісь смачні польські пончики.</button>
+                    <button class="quiz-option" onclick="answerQuiz(2, 2, false)">Б) Скажу, що я на дієті, і тихенько з'їм свій бутерброд.</button>
+                    <button class="quiz-option" onclick="answerQuiz(2, 2, true)">В) Згадую, що це суп із коров'ячих шлунків, затримую дихання і їм, бо незручно відмовити. 🥣</button>
+                </div>
+            </div>
+            <div class="quiz-step" id="q2-step3" style="display:none;">
+                <p style="font-size:16px; margin-bottom:10px;"><b>Питання 3:</b> Яке польське слово ти використовуєш найчастіше, щоб завершити телефонний дзвінок?</p>
+                <div class="quiz-grid">
+                    <button class="quiz-option" onclick="answerQuiz(2, 3, false)">А) "Добре, кохана, бувай".</button>
+                    <button class="quiz-option" onclick="answerQuiz(2, 3, true)">Б) "НО ТАК, ТАК... НО ДОБРА... НО ЦЕШЧ!" (І так разів п'ятнадцять) 📱</button>
+                    <button class="quiz-option" onclick="answerQuiz(2, 3, false)">В) "До відзеня, сонечко".</button>
+                </div>
+            </div>
+            <div class="quiz-feedback" id="quiz-feedback-2"></div>
+        </div>
+
+        <div id="success-q2-box" style="display:none; margin-top: 20px; width:100%; text-align: center;">
+            <p style="color: var(--neon-green); font-size: 18px; font-weight: bold; margin-bottom: 15px;">🇵🇱 Екзамен здано без хабарів! Дозволяємо жити в Польщі ще рік.</p>
+            <p>Твоя друга цифра коду: <br><span class="code-pill" id="display-d2">X</span></p>
+            <button class="next-arrow-btn" style="margin-top:25px;" onclick="nextScreen(4)">Фінальний раунд <span>➔</span></button>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-quest3">
+        <h2>Завдання 3: Фірмовий стиль ⏰</h2>
+        <div class="story-viewport">
+            <p class="story-block visible" data-step="1">Залишився останній рубіж перед тим, як замок впаде. ⏱️</p>
+            <p class="story-block" data-step="2">Давай згадаємо твої славні робочі будні в Україні.</p>
+            <p class="story-block" data-step="3">Ти працюєш допізна на об'єкті, береш слухавку і впевнено кажеш сім'ї свою коронну фразу: "Скоро буду!".</p>
+        </div>
+        <button class="next-arrow-btn" id="arrow-q3" onclick="advanceStory('screen-quest3')">Далі <span>➔</span></button>
+
+        <div id="quiz-q3-zone" style="display: none; width:100%;">
+            <p style="font-size:16px; margin-bottom:15px; text-align: center;"><b>Питання:</b> скільки часу в реальному земному житті триває татове "Скоро буду"?</p>
+            <div class="quiz-grid">
+                <button class="quiz-option" onclick="answerQuiz(3, 1, false)">А) Ну, буквально 5-10 хвилин, я вже шнурки зав'язую.</button>
+                <button class="quiz-option" onclick="answerQuiz(3, 1, false)">Б) Рівно півгодини з урахуванням заторів на дорогах.</button>
+                <button class="quiz-option" onclick="answerQuiz(3, 1, true)">В) Це філософське поняття, що означає від 2 до 5 годин (поки не докрутиться останній гвинт) 🛠️</button>
+            </div>
+            <div class="quiz-feedback" id="quiz-feedback-3"></div>
+        </div>
+
+        <div id="success-q3-box" style="display:none; margin-top: 20px; width:100%; text-align: center;">
+            <p style="color: var(--neon-green); font-size: 18px; font-weight: bold; margin-bottom: 15px;">⏳ Ха-ха, жиза! Ну зате чесно. Всі замки розблоковано!</p>
+            <p>Твоя третя цифра коду: <br><span class="code-pill" id="display-d3">X</span></p>
+            <button class="action-btn" style="margin-top:25px;" onclick="nextScreen(5)">Відкрити Подарунок! 🔓</button>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-final">
+        <h1 class="glitch-title">УРААА! КВЕСТ ПРОЙДЕНО! 🎉</h1>
+        <div class="story-viewport">
+            <p class="story-block visible" data-step="1">Ти успішно подолав усі пастки та довів, що ти супер-тато! 👑</p>
+            <p class="story-block" data-step="2">Ми тебе дуже сильно любимо, цінуємо твою працю, золоті руки, терпіння та твою фірмову посмішку!</p>
+            <p class="story-block" data-step="3">Твій код від замка чекає нижче! Забирай приз та будь найщасливішим! 🎂❤</p>
+        </div>
+        <button class="next-arrow-btn" id="arrow-final" onclick="advanceStory('screen-final')">Отримати Код <span>➔</span></button>
+
+        <div id="final-code-zone" style="display:none; text-align: center; width:100%;">
+            <div>
+                <span class="final-code-box" id="code-output">0-0-0</span>
+            </div>
+
+            <div class="slider-container">
+                <button class="slider-btn prev-btn" onclick="changeSlide(-1)">❮</button>
+                <button class="slider-btn next-btn" onclick="changeSlide(1)">❯</button>
+                <div class="slider-track" id="slider-track">
+                    <div class="slide">
+                        <img src="photo1.jpg" alt="Тато на об'єкті">
+                        <div class="slide-caption">Наш головний інженер і рятівник світла ⚡</div>
+                    </div>
+                    <div class="slide">
+                        <img src="photo2.jpg" alt="Тато у Польщі">
+                        <div class="slide-caption">Правдивий польський пан на заслуженому відпочинку 👑</div>
+                    </div>
+                    <div class="slide">
+                        <img src="photo3.jpg" alt="Найкраща родина">
+                        <div class="slide-caption">Найкращий тато і чоловік у світі! ❤️</div>
+                    </div>
+                </div>
+            </div>
+
+            <p style="color: var(--text-muted); font-size: 15px; margin-top: 15px;">Підказка: використовуй стрілочки, щоб гортати фотографії!</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // СЕКРЕТНИЙ КОД (Встанови свій тут)
+    const SECRET_CODE = { d1: "4", d2: "7", d3: "2" };
+
+    // СТАН ГРИ (ПІДВАЛ)
+    let basementStep = 1; 
+    let currentSlide = 0;
+
+    function closePreloader() {
+        const loader = document.getElementById('preloader');
+        loader.style.opacity = '0';
+        loader.style.visibility = 'hidden';
+    }
+
+    function advanceStory(screenId) {
+        const screen = document.getElementById(screenId);
+        const blocks = Array.from(screen.querySelectorAll('.story-block'));
+        let currentIndex = blocks.findIndex(b => b.classList.contains('visible'));
+
+        if (currentIndex < blocks.length - 1) {
+            blocks[currentIndex].classList.remove('visible');
+            blocks[currentIndex + 1].classList.add('visible');
+
+            if (currentIndex + 1 === blocks.length - 1) {
+                screen.querySelector('.next-arrow-btn').style.display = 'none';
+                
+                if (screenId === 'screen-start') document.getElementById('btn-start-game').style.display = 'block';
+                if (screenId === 'screen-quest1') document.getElementById('interactive-q1-zone').style.display = 'block';
+                if (screenId === 'screen-quest2') document.getElementById('quiz-q2-zone').style.display = 'block';
+                if (screenId === 'screen-quest3') document.getElementById('quiz-q3-zone').style.display = 'block';
+                if (screenId === 'screen-final') {
+                    document.getElementById('final-code-zone').style.display = 'block';
+                    document.getElementById('code-output').innerText = `${SECRET_CODE.d1} - ${SECRET_CODE.d2} - ${SECRET_CODE.d3}`;
+                    initFireworks();
+                }
+            }
+        }
+    }
+
+    function nextScreen(screenNum) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        if (screenNum === 2) document.getElementById('screen-quest1').classList.add('active');
+        if (screenNum === 3) document.getElementById('screen-quest2').classList.add('active');
+        if (screenNum === 4) document.getElementById('screen-quest3').classList.add('active');
+        if (screenNum === 5) document.getElementById('screen-final').classList.add('active');
+    }
+
+    // ЛОГІКА ЛІХТАРИКА (ПІДВАЛ)
+    function updateFlashlight(e) {
+        const wrapper = document.getElementById('flashlight-wrapper');
+        const rect = wrapper.getBoundingClientRect();
+        wrapper.style.setProperty('--mouse-x', (e.clientX - rect.left) + 'px');
+        wrapper.style.setProperty('--mouse-y', (e.clientY - rect.top) + 'px');
+    }
+
+    function updateFlashlightTouch(e) {
+        if(e.touches.length === 0) return;
+        const wrapper = document.getElementById('flashlight-wrapper');
+        const rect = wrapper.getBoundingClientRect();
+        const touch = e.touches[0];
+        wrapper.style.setProperty('--mouse-x', (touch.clientX - rect.left) + 'px');
+        wrapper.style.setProperty('--mouse-y', (touch.clientY - rect.top) + 'px');
+    }
+
+    function clickDarkItem(itemType, event) {
+        if(event) event.stopPropagation();
+        const statusText = document.getElementById('game-status-text');
+
+        if (itemType === 'shield' && basementStep === 1) {
+            document.getElementById('item-shield').classList.add('object-done');
+            document.getElementById('shield-lever').setAttribute('y1', '65');
+            document.getElementById('shield-lever').setAttribute('y2', '35');
+            document.getElementById('shield-knob').setAttribute('cy', '65');
+            statusText.innerText = "⚡ Напруга пішла! Сцикатно, але треба знайти і заізолювати обрив дротів!";
+            statusText.style.color = "var(--neon-gold)";
+            basementStep = 2;
+        } 
+        else if (itemType === 'wire' && basementStep === 2) {
+            document.getElementById('item-tape').style.display = 'block';
+            statusText.innerText = "🐀 Ого, та тут щур погриз кабель! Швидко тисни на синю ізоленту, щоб замотати!";
+            statusText.style.color = "var(--neon-gold)";
+            basementStep = 3;
+        } 
+        else if (itemType === 'tape' && basementStep === 3) {
+            document.getElementById('item-tape').style.display = 'none';
+            document.getElementById('item-wire').classList.add('object-done');
+            statusText.innerText = "💪 Краса, заізольовано на віки! Залишилося увімкнути головний рубильник/вимикач (внизу по центру)!";
+            statusText.style.color = "var(--neon-green)";
+            basementStep = 4;
+        } 
+        else if (itemType === 'switch' && basementStep === 4) {
+            document.getElementById('item-switch').classList.add('object-done');
+            document.getElementById('switch-rocker').setAttribute('points', '20,20 40,20 30,45');
+            
+            setTimeout(() => {
+                document.getElementById('interactive-q1-zone').style.display = 'none';
+                document.getElementById('success-q1-box').style.display = 'block';
+                document.getElementById('display-d1').innerText = SECRET_CODE.d1;
+            }, 600);
+        } else {
+            handleDarknessMiss();
+        }
+    }
+
+    function handleDarknessMiss() {
+        const container = document.getElementById('main-box');
+        container.classList.add('shake-error');
+        document.body.classList.add('error-flash');
+        setTimeout(() => {
+            container.classList.remove('shake-error');
+            document.body.classList.remove('error-flash');
+        }, 400);
+    }
+
+    // ЛОГІКА КВІЗІВ (ЕКРАНИ 2 ТА 3)
+    function answerQuiz(questNum, stepNum, isCorrect) {
+        const feedback = document.getElementById(`quiz-feedback-${questNum}`);
+        feedback.style.display = "block";
+
+        if (!isCorrect) {
+            feedback.className = "quiz-feedback feedback-error";
+            feedback.innerText = "❌ Ай-яй-яй! Не вгадав, спробуй ще раз!";
+            handleDarknessMiss();
+        } else {
+            feedback.className = "quiz-feedback feedback-success";
+            feedback.innerText = "✅ Правильно! Прекрасна відповідь.";
+            
+            setTimeout(() => {
+                feedback.style.display = "none";
+                if (questNum === 2) {
+                    if (stepNum === 1) {
+                        document.getElementById('q2-step1').style.display = 'none';
+                        document.getElementById('q2-step2').style.display = 'block';
+                    } else if (stepNum === 2) {
+                        document.getElementById('q2-step2').style.display = 'none';
+                        document.getElementById('q2-step3').style.display = 'block';
+                    } else if (stepNum === 3) {
+                        document.getElementById('quiz-q2-zone').style.display = 'none';
+                        document.getElementById('success-q2-box').style.display = 'block';
+                        document.getElementById('display-d2').innerText = SECRET_CODE.d2;
+                    }
+                } else if (questNum === 3) {
+                    document.getElementById('quiz-q3-zone').style.display = 'none';
+                    document.getElementById('success-q3-box').style.display = 'block';
+                    document.getElementById('display-d3').innerText = SECRET_CODE.d3;
+                }
+            }, 1000);
+        }
+    }
+
+    // ЛОГІКА СЛАЙДЕРА ФОТОГРАФІЙ
+    function changeSlide(direction) {
+        const track = document.getElementById('slider-track');
+        const slides = document.querySelectorAll('.slide');
+        currentSlide = (currentSlide + direction + slides.length) % slides.length;
+        track.style.transform = `translateX(-${currentSlide * 100}%)`;
+    }
+
+    // ЕФЕКТ ФЕЄРВЕРКІВ
+    function initFireworks() {
+        const canvas = document.getElementById('fireworks-canvas');
+        canvas.style.display = 'block';
+        const ctx = canvas.getContext('2d');
+        
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+        
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                this.radius = Math.random() * 2 + 1;
+                this.velocity = {
+                    x: (Math.random() - 0.5) * 8,
+                    y: (Math.random() - 0.5) * 8
+                };
+                this.alpha = 1;
+            }
+            draw() {
+                ctx.save(); ctx.globalAlpha = this.alpha;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.all * 2);
+                ctx.fillStyle = this.color; ctx.fill(); ctx.restore();
+            }
+            update() {
+                this.velocity.y += 0.04;
+                this.x += this.velocity.x; this.y += this.velocity.y;
+                this.alpha -= 0.015;
+            }
+        }
+
+        class Firework {
+            constructor() {
+                this.x = Math.random() * width; this.y = height;
+                this.targetY = Math.random() * (height * 0.5);
+                this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
+                this.velocity = { x: (Math.random() - 0.5) * 3, y: -Math.random() * 5 - 7 };
+                this.particles = []; this.exploded = false;
+            }
+            update() {
+                if (!this.exploded) {
+                    this.x += this.velocity.x; this.y += this.velocity.y;
+                    if (this.y <= this.targetY) {
+                        this.exploded = true;
+                        for (let i = 0; i < 40; i++) this.particles.push(new Particle(this.x, this.y, this.color));
+                    }
+                } else {
+                    this.particles.forEach((p, index) => {
+                        p.update();
+                        if (p.alpha <= 0) this.particles.splice(index, 1);
+                    });
+                }
+            }
+            draw() {
+                if (!this.exploded) {
+                    ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color; ctx.fill();
+                } else {
+                    this.particles.forEach(p => p.draw());
+                }
+            }
+        }
+
+        const fireworks = [];
+        function animate() {
+            ctx.fillStyle = 'rgba(5, 5, 8, 0.2)';
+            ctx.fillRect(0, 0, width, height);
+            if (Math.random() < 0.04 && fireworks.length < 6) fireworks.push(new Firework());
+            fireworks.forEach((f, index) => {
+                f.update(); f.draw();
+                if (f.exploded && f.particles.length === 0) fireworks.splice(index, 1);
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+</script>
+
+</body>
+</html>
